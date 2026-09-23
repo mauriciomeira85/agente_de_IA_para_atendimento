@@ -1,0 +1,55 @@
+# ==============================================================================
+# ARQUIVO: .gitignore
+# ------------------------------------------------------------------------------
+# Lista de arquivos e pastas que NUNCA devem ser enviados ao GitHub —
+# segredos, dependências instaladas e arquivos gerados automaticamente,
+# que cada pessoa/servidor gera de novo localmente quando precisa.
+# ==============================================================================
+
+# Segredos reais (nunca o modelo .env.exemplo, sempre o .env de verdade)
+.env
+*.env
+!.env.exemplo
+
+# Anotações internas de desenvolvimento — contêm segredos reais da Meta
+# (App Secret, tokens) e histórico de decisões que não é pra ficar público
+Informacoes/
+
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.egg-info/
+backend/.pytest_cache/
+
+# Frontend (Node/Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/npm-debug.log*
+
+# Cloudflare Worker
+infra/cloudflare-webhook/node_modules/
+infra/cloudflare-webhook/.wrangler/
+
+# Editores e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Estado local do Claude (não publicar)
+.claude/
+
+# Arquivos locais de assistentes de programação
+.codex/
+.cursor/
+.gemini/
+.continue/
+.windsurf/
+.opencode/
+.aider*
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+copilot-instructions.md

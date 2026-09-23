@@ -1,0 +1,177 @@
+# ==============================================================================
+# ARQUIVO: docker-compose.yml
+# ------------------------------------------------------------------------------
+# INTRODUÇÃO
+#
+# Este arquivo descreve TODOS os serviços que compõem o Agente de
+# Atendimento e como eles se conectam entre si. É o arquivo que a VM (ou
+# qualquer outro servidor) usa para subir a aplicação inteira com um único
+# comando:
+#
+#   docker compose up -d --build
+#
+# Os serviços são:
+#   - postgres      : banco de dados principal (atendimentos, conversas,
+#                      setores, base de conhecimento, configurações) — usa a
+#                      imagem pgvector (não a postgres:alpine comum), porque
+#                      a Base de Conhecimento (RAG) guarda embeddings numa
+#                      coluna vetorial e faz busca por similaridade nela
+#                      (ver backend/app/modelos/item_de_conhecimento.py e
+#                      Informacoes/Arquitetura.md, seção 4.4)
+#   - redis         : fila de mensagens usada pelo Celery
+#   - backend       : a API (FastAPI) que atende o frontend e o webhook do WhatsApp
+#   - celery_worker : processa as respostas do agente de IA em segundo plano
+#   - celery_beat   : dispara a verificação periódica de atendimentos em
+#                      silêncio (ver backend/app/tarefas/tarefas_monitoramento.py)
+#   - frontend      : a interface (Next.js) usada pela empresa
+#   - caddy         : porta de entrada única, que direciona cada requisição
+#                      para o frontend ou para o backend (ver infra/caddy/Caddyfile)
+#   - tunnel        : abre o endereço público na internet (Cloudflare Tunnel),
+#                      sem precisar liberar portas na VM nem ter domínio próprio
+#   - tunnel_dominio: túnel nomeado do Cloudflare que publica a aplicação em
+#                      um domínio próprio e fixo (projetostechmauricio.lol)
+# ==============================================================================
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agente
+      POSTGRES_PASSWORD: ${SENHA_DO_BANCO:-agente}
+      POSTGRES_DB: agente_atendimento
+    volumes:
+      - dados_do_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agente"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    volumes:
+      # Compartilhado com o celery_worker (que baixa e salva a mídia, ver
+      # app/agente/nos.py) — o backend só LÊ daqui pra servir na aba
+      # Conversas (ver app/rotas/conversas.py). Precisa ser o MESMO volume
+      # nos dois serviços para um container enxergar o que o outro salvou.
+      - midia_recebida:/app/midia_armazenada
+
+  celery_worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A app.tarefas.celery_app worker --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - midia_recebida:/app/midia_armazenada
+
+  celery_beat:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A app.tarefas.celery_app beat --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Vazio de propósito: o Caddy serve o frontend e o backend sob o
+        # MESMO endereço público, então o navegador chama caminhos
+        # relativos (ex.: "/api/atendimentos") em vez de uma URL fixa —
+        # assim o frontend funciona tanto atrás do túnel do Cloudflare
+        # (endereço muda a cada reinício) quanto atrás de um domínio
+        # próprio futuro, sem precisar recompilar a imagem.
+        NEXT_PUBLIC_API_URL: ""
+    restart: unless-stopped
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - "80"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - dados_do_caddy:/data
+      - configuracao_do_caddy:/config
+    depends_on:
+      - backend
+      - frontend
+
+  tunnel:
+    # A VM já usa a porta 443 para outros projetos, então em vez de expor
+    # 80/443 diretamente, um túnel do Cloudflare cria uma conexão de saída
+    # e devolve um endereço público https://*.trycloudflare.com pronto, com
+    # HTTPS automático — sem mexer em firewall/Security List da Oracle
+    # Cloud. É o mesmo padrão já usado pelos outros projetos desta VM.
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+    depends_on:
+      - caddy
+
+  tunnel_dominio:
+    # Túnel nomeado (ao contrário do "tunnel" acima, que é anônimo e muda de
+    # endereço a cada reinício): usa um token fixo, gerado uma única vez no
+    # painel Zero Trust do Cloudflare, e publica a aplicação em
+    # agenteatendimento.projetostechmauricio.lol — endereço permanente.
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN}"]
+    env_file: .env
+    depends_on:
+      - caddy
+
+volumes:
+  dados_do_postgres:
+  dados_do_caddy:
+  configuracao_do_caddy:
+  midia_recebida:
+
+# ==============================================================================
+# RESUMO
+# ------------------------------------------------------------------------------
+# Este arquivo sobe oito containers interligados: banco de dados (com
+# extensão pgvector, pra Base de Conhecimento), fila Redis, API, worker e
+# beat do Celery, frontend, o Caddy como porta de entrada única (porta 80
+# interna) e o túnel do Cloudflare, que publica essa porta 80 na internet
+# com HTTPS automático. As variáveis de ambiente reais (chaves de API,
+# segredos, senhas) vêm do arquivo .env, que nunca é enviado ao GitHub —
+# ver .env.exemplo para a lista completa de variáveis esperadas. O volume
+# "midia_recebida" guarda os arquivos (foto/vídeo/áudio/documento)
+# recebidos de clientes no WhatsApp — ver
+# backend/app/armazenamento_midia.py — compartilhado entre backend e
+# celery_worker, o único par de serviços que precisa enxergar essa pasta.
+# ==============================================================================

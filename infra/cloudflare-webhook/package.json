@@ -1,0 +1,13 @@
+{
+  "name": "agente-atendimento-webhook",
+  "private": true,
+  "description": "Worker do Cloudflare que valida e repassa os eventos da WhatsApp Cloud API (Meta) para o backend do Agente de Atendimento.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Paleta da marca — índigo/azul-violeta, escolhida para o Agente de
+     Atendimento (comunicação, confiança, calma) — distinta do
+     navy+verde-azulado do Agente Comercial SDR (vendas/tecnologia) e do
+     âmbar/terracota do Agente de Cobrança (dinheiro/atenção). Índigo é a
+     cor mais associada a suporte/atendimento em produtos de referência do
+     setor, sem soar comercial nem urgente. */
+  --color-marca-50: #eef0fd;
+  --color-marca-100: #dde2fb;
+  --color-marca-400: #7b85e8;
+  --color-marca-500: #5560d9;
+  --color-marca-600: #4147bd;
+  --color-marca-700: #333999;
+  --color-marca-escuro: #171a33;
+  --color-marca-escuro-2: #1f2444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-marca-50: var(--color-marca-50);
+  --color-marca-100: var(--color-marca-100);
+  --color-marca-400: var(--color-marca-400);
+  --color-marca-500: var(--color-marca-500);
+  --color-marca-600: var(--color-marca-600);
+  --color-marca-700: var(--color-marca-700);
+  --color-marca-escuro: var(--color-marca-escuro);
+  --color-marca-escuro-2: var(--color-marca-escuro-2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

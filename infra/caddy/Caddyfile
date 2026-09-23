@@ -1,0 +1,51 @@
+# ==============================================================================
+# ARQUIVO: infra/caddy/Caddyfile
+# ------------------------------------------------------------------------------
+# INTRODUÇÃO
+#
+# Este arquivo configura o Caddy — o servidor que fica na "porta de
+# entrada" da VM, decidindo para onde cada requisição deve ir: caminhos
+# que começam com /api, /docs ou /openapi.json vão para o backend
+# (FastAPI); todo o resto vai para o frontend (Next.js). É essa divisão
+# que permite acessar a aplicação inteira por um único endereço público,
+# sem quem está visitando precisar saber que, por trás, existem vários
+# serviços diferentes.
+#
+# "{$DOMINIO_PUBLICO}" é substituído automaticamente pelo valor da
+# variável de ambiente de mesmo nome (definida no .env, ver
+# .env.exemplo). Por padrão a aplicação fica atrás de um túnel do
+# Cloudflare (ver docker-compose.yml), que já entrega HTTPS pronto na
+# borda da internet — por isso o Caddy aqui dentro só precisa escutar HTTP
+# simples na porta 80 (endereço ":80", sem tentar emitir certificado
+# próprio). Se um dia a aplicação ganhar domínio próprio com as portas
+# 80/443 liberadas diretamente na VM, basta definir DOMINIO_PUBLICO com
+# esse domínio (ex.: "meudominio.com") que o Caddy passa a emitir um
+# certificado Let's Encrypt automaticamente para ele.
+# ==============================================================================
+
+{$DOMINIO_PUBLICO:":80"} {
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /docs* {
+		reverse_proxy backend:8000
+	}
+
+	handle /openapi.json {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+# ==============================================================================
+# RESUMO
+# ------------------------------------------------------------------------------
+# Este arquivo roteia /api, /docs e /openapi.json para o backend, e
+# qualquer outro caminho para o frontend, servindo tudo sob um único
+# endereço público — com HTTPS automático quando DOMINIO_PUBLICO aponta
+# para um domínio de verdade.
+# ==============================================================================

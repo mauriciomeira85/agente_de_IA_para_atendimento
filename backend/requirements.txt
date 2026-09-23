@@ -1,0 +1,63 @@
+# ============================================================================
+# Dependências do backend do Agente de Atendimento
+# ============================================================================
+# Este arquivo lista todas as bibliotecas Python necessárias para rodar a
+# API, o agente de IA (LangGraph), a fila de tarefas (Celery) e o acesso ao
+# banco de dados (PostgreSQL + pgvector). Para instalar tudo de uma vez,
+# rode:
+#   pip install -r requirements.txt
+# ============================================================================
+
+# --- Framework web da API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+websockets==14.1
+
+# --- Banco de dados (PostgreSQL + pgvector) ---
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg[binary]==3.2.3
+# Tipo de coluna vetorial (Vector) usado por modelos/item_de_conhecimento.py
+# para guardar o embedding de cada item da Base de Conhecimento — exige a
+# extensão "vector" habilitada no Postgres (imagem pgvector/pgvector:pg16,
+# ver docker-compose.yml, e CREATE EXTENSION na migração inicial).
+pgvector==0.3.6
+
+# --- Fila de tarefas assíncronas (reengajamento por silêncio) ---
+celery==5.4.0
+redis==5.2.1
+
+# --- Autenticação e segurança ---
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+
+# --- Validação de dados ---
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# --- Cliente HTTP (usado para falar com a Meta, a DeepSeek e a Together AI) ---
+httpx==0.28.1
+
+# --- Orquestração do agente de IA ---
+langgraph==0.2.60
+langchain-core==0.3.28
+langchain-openai==0.2.14
+
+# --- Leitura de documentos recebidos em conversa (sem IA — PDF, Word, Excel) ---
+# Um cliente pode mandar um comprovante em PDF, um documento Word ou uma
+# planilha Excel durante o atendimento (ver app/agente/nos.py) — usadas
+# aqui, não na importação de contatos (que este projeto não tem, ver
+# Informacoes/Arquitetura.md).
+PyMuPDF==1.24.10
+python-docx==1.1.2
+openpyxl==3.1.5
+
+# --- Observabilidade (logs estruturados) ---
+structlog==24.4.0
+
+# --- Testes ---
+pytest==8.3.4
+pytest-asyncio==0.25.0

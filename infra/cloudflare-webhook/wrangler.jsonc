@@ -1,0 +1,18 @@
+{
+  // Arquivo de configuração do Cloudflare Worker (ferramenta "wrangler").
+  // "name" é o identificador do Worker na conta Cloudflare — é ele que
+  // forma o endereço público final (algo assim:
+  // https://<name>.<subdomínio-da-conta>.workers.dev/webhook).
+  // "webhook-atendimento" — NUNCA renomear de volta para "webhook": esse
+  // nome já é usado pelo Worker de produção do Agente Comercial SDR na
+  // MESMA conta Cloudflare (nomes de Worker são únicos por conta); um
+  // deploy com o nome errado sobrescreveria o Worker do SDR.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "webhook-atendimento",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}

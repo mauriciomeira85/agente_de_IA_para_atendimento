@@ -1,0 +1,4 @@
+# Scripts de shell precisam de terminador de linha LF, mesmo em checkout no
+# Windows (core.autocrlf=true) — CRLF quebra o "#!/bin/sh" (shebang) dentro
+# do container Docker, o que impede o backend/celery de iniciar.
+*.sh text eol=lf
