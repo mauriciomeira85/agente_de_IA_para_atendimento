@@ -95,7 +95,7 @@ flowchart LR
     Turno["executar_turno_do_agente<br/>monta prompt + setores da empresa + ferramentas disponíveis<br/>roda o loop de turno/passo"] --> Fim(["Resultado: resposta em texto,<br/>status do atendimento, setor de encaminhamento"])
 ```
 
-### 4.2 Triagem → FAQ (RAG) → roteamento — tudo dentro de UM agente
+### 4.3 Triagem → FAQ (RAG) → roteamento — tudo dentro de UM agente
 
 Esse fluxo inteiro acontece dentro do **mesmo** loop de turno/passo — o modelo decide, turno a turno, se consulta a base de conhecimento, se encaminha para um setor, ou se responde direto. Não é um fluxograma fixo em código escolhendo a ação — o **próprio modelo** recebe as ações disponíveis como ferramentas de verdade e decide, dentro da própria resposta, se e qual delas chamar. Quando chama, a ferramenta **executa a ação de verdade na hora** — não apenas anota uma intenção para outro código decidir depois.
 
@@ -129,7 +129,7 @@ sequenceDiagram
     Note over Agente,IA: repete ate o modelo responder so em texto, ou ate um teto de passos de seguranca
 ```
 
-**4.3 Ferramentas disponíveis para o modelo chamar** (`agente/ferramentas.py`), sempre em modo livre — nunca uma é forçada, o modelo decide sozinho se/quando/qual usar:
+### 4.4 Ferramentas disponíveis para o modelo chamar** (`agente/ferramentas.py`), sempre em modo livre — nunca uma é forçada, o modelo decide sozinho se/quando/qual usar:
 
 | Ferramenta | O que faz de verdade quando chamada |
 |---|---|
