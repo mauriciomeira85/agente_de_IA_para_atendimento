@@ -1,8 +1,6 @@
 # Agente de Atendimento
 
-Plataforma SaaS multi-tenant de um agente de IA para **atendimento receptivo** pelo WhatsApp — a empresa cadastra seus setores e sua base de conhecimento (políticas, FAQ, descrições de produto), e o agente faz a triagem de cada mensagem recebida: responde sozinho usando busca semântica na base de conhecimento, ou encaminha para o setor humano certo quando não consegue.
-
-Cada empresa que se cadastra ganha seu próprio agente, isolado das demais, sem precisar de uma implantação separada: é a mesma aplicação atendendo várias empresas ao mesmo tempo, cada uma vendo apenas os seus próprios dados.
+Plataforma SaaS multi-tenant de um agente de IA para **atendimento receptivo** pelo WhatsApp — a empresa cadastra seus setores e sua base de conhecimento (políticas, FAQ, descrições de produto), e o agente faz a triagem de cada mensagem recebida: responde sozinho usando busca semântica na base de conhecimento, ou encaminha para o setor humano certo quando necessário.
 
 🔗 **Aplicação em produção:** [agenteatendimento.projetostechmauricio.lol](https://agenteatendimento.projetostechmauricio.lol/)
 
