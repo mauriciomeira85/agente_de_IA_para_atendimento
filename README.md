@@ -4,29 +4,29 @@ Plataforma SaaS multi-tenant de um agente de IA para **atendimento receptivo** p
 
 Cada empresa que se cadastra ganha seu próprio agente, isolado das demais, sem precisar de uma implantação separada: é a mesma aplicação atendendo várias empresas ao mesmo tempo, cada uma vendo apenas os seus próprios dados.
 
-## O problema que este projeto resolve
+## 1. O problema que este projeto resolve
 
 Empresas que recebem mensagens de clientes pelo WhatsApp costumam depender de um time humano até para perguntas repetitivas — horário de funcionamento, política de troca, como usar um produto — que já estão documentadas em algum lugar, só não de um jeito que o cliente consiga achar sozinho. Este projeto automatiza a primeira linha desse atendimento: o agente lê a base de conhecimento da empresa, responde o que consegue responder com segurança, e só aciona um humano quando a pergunta foge do que está documentado ou exige uma ação humana de verdade.
 
 O agente é **receptivo** por natureza: não existe abordagem automática nem importação de contatos — todo atendimento nasce sozinho, na primeira mensagem que o cliente manda. E o desfecho não é fixo: cada atendimento pode ser encaminhado para qualquer setor que a empresa cadastrar (Vendas, Financeiro, Suporte Técnico, ou o que fizer sentido para o negócio dela) — o roteamento é decidido caso a caso, não configurado uma vez só para toda a empresa.
 
-## Demonstração
+## 2. Demonstração
 
 Três vídeos mostrando o agente funcionando de ponta a ponta pelo WhatsApp de verdade — do lado do cliente e do painel em tempo real.
 
-**Demonstração da plataforma**
+**2.1 Demonstração da plataforma**
 
 https://github.com/user-attachments/assets/bca20643-888b-4f6a-83a9-8d7d71ec792c
 
-**Demonstração do funcionamento do agente no WhatsApp**
+**2.2 Demonstração do funcionamento do agente no WhatsApp**
 
 https://github.com/user-attachments/assets/8d4763e5-7248-4c48-b068-8db9881848a6
 
-**Outra demonstração do funcionamento do agente no WhatsApp**
+**2.3 Outra demonstração do funcionamento do agente no WhatsApp**
 
 https://github.com/user-attachments/assets/4a26de79-6d9d-437e-a1ff-e936331eec32
 
-## Funcionalidades
+## 3. Funcionalidades
 
 - **Dashboard** — 4 cartões de quantidade (total de atendimentos, em atendimento, encaminhados, resolvidos), 3 cartões de taxa (encaminhamento, resolução automática, reabertura), dois funis de barras (encaminhamento e resolução), um gráfico de volume de atendimentos por dia (rolagem horizontal para períodos longos), ranking dos setores mais acionados e filtro por período — a métrica central deste domínio é quanto a IA resolveu sozinha, sem gerar trabalho para um setor humano.
 - **Base de Atendimentos** — todo atendimento nasce automaticamente da primeira mensagem do cliente pelo WhatsApp (sem criação/importação manual); tabela com filtro por status e busca, edição/exclusão manual, indicador de reabertura.
@@ -39,11 +39,11 @@ https://github.com/user-attachments/assets/4a26de79-6d9d-437e-a1ff-e936331eec32
 - **Configurações** — dados gerais da conta da empresa na plataforma.
 - **Cadastro e login** — cada empresa cria sua própria conta; os dados de uma empresa nunca ficam visíveis para outra.
 
-## Arquitetura
+## 4. Arquitetura
 
 O frontend (Next.js) e o backend (FastAPI) ficam atrás de um único endereço público, roteado pelo Caddy — que também cuida da emissão automática do certificado HTTPS.
 
-### Visão geral — da mensagem do cliente até a resposta de volta
+### 4.1 Visão geral — da mensagem do cliente até a resposta de volta
 
 ```mermaid
 flowchart TD
@@ -73,7 +73,7 @@ flowchart TD
     Meta -->|mensagem| Cliente
 ```
 
-### O grafo do agente — o que acontece a cada mensagem recebida
+### 4.2 O grafo do agente — o que acontece a cada mensagem recebida
 
 Duas etapas (nós do LangGraph), sempre na mesma ordem — sem "checkpointer": o histórico completo já mora no Postgres, então cada execução roda do zero com o histórico inteiro como entrada.
 
@@ -95,7 +95,7 @@ flowchart LR
     Turno["executar_turno_do_agente<br/>monta prompt + setores da empresa + ferramentas disponíveis<br/>roda o loop de turno/passo"] --> Fim(["Resultado: resposta em texto,<br/>status do atendimento, setor de encaminhamento"])
 ```
 
-### Triagem → FAQ (RAG) → roteamento — tudo dentro de UM agente
+### 4.2 Triagem → FAQ (RAG) → roteamento — tudo dentro de UM agente
 
 Esse fluxo inteiro acontece dentro do **mesmo** loop de turno/passo — o modelo decide, turno a turno, se consulta a base de conhecimento, se encaminha para um setor, ou se responde direto. Não é um fluxograma fixo em código escolhendo a ação — o **próprio modelo** recebe as ações disponíveis como ferramentas de verdade e decide, dentro da própria resposta, se e qual delas chamar. Quando chama, a ferramenta **executa a ação de verdade na hora** — não apenas anota uma intenção para outro código decidir depois.
 
@@ -129,7 +129,7 @@ sequenceDiagram
     Note over Agente,IA: repete ate o modelo responder so em texto, ou ate um teto de passos de seguranca
 ```
 
-**Ferramentas disponíveis para o modelo chamar** (`agente/ferramentas.py`), sempre em modo livre — nunca uma é forçada, o modelo decide sozinho se/quando/qual usar:
+**4.3 Ferramentas disponíveis para o modelo chamar** (`agente/ferramentas.py`), sempre em modo livre — nunca uma é forçada, o modelo decide sozinho se/quando/qual usar:
 
 | Ferramenta | O que faz de verdade quando chamada |
 |---|---|
@@ -138,7 +138,7 @@ sequenceDiagram
 | `marcar_como_resolvido` | Marca o atendimento como `RESOLVIDO` — a IA respondeu sozinha, sem precisar de humano |
 | `nao_responder` | Encerra o turno em silêncio proposital (ferramenta terminal — corta o loop na hora) |
 
-## Estrutura de pastas
+## 5. Estrutura de pastas
 
 ```
 agente-atendimento/
@@ -166,7 +166,7 @@ agente-atendimento/
 └── docker-compose.yml
 ```
 
-## Stack tecnológica
+## 6. Stack tecnológica
 
 | Camada | Tecnologia | Por quê |
 |---|---|---|
@@ -182,7 +182,7 @@ agente-atendimento/
 | Infraestrutura | Docker, Docker Compose, Caddy (HTTPS automático) | Deploy reproduzível em qualquer VM Linux |
 | Autenticação | JWT, bcrypt | Login isolado por empresa (multi-tenant) |
 
-## Configuração externa (Meta / WhatsApp Business)
+## 7. Configuração externa (Meta / WhatsApp Business)
 
 O botão "Conectar WhatsApp" da aba Canais usa o WhatsApp Embedded Signup da Meta — a empresa faz login numa janela oficial da Meta e escolhe o número dela, sem precisar copiar nenhuma credencial manualmente. Para isso funcionar, é preciso um app criado em [developers.facebook.com](https://developers.facebook.com) com o produto WhatsApp Cloud API adicionado, e algumas configurações feitas no painel da Meta antes do primeiro uso:
 
@@ -213,7 +213,7 @@ Três configurações adicionais, também no painel da Meta, são obrigatórias 
 - **Login do Facebook para Empresas → Início rápido → Web → "Site URL"**: preencha com `https://seu-dominio.com` — isso cria automaticamente uma plataforma "Site" em Configurações do app → Básico (etapa fácil de esquecer, mas obrigatória).
 - **Login do Facebook para Empresas → Configurações**: ative "Entrar com o SDK do JavaScript" e adicione o mesmo domínio em "Domínios permitidos para o SDK do JavaScript"; adicione também `https://seu-dominio.com/canais` e `https://seu-dominio.com/` em "URIs de redirecionamento do OAuth válidos" (a Meta recusa a conexão sem isso, mesmo com os outros campos certos).
 
-### Número de teste vs. número real (produção)
+### 7.1 Número de teste vs. número real (produção)
 
 Ao conectar pela primeira vez, a Meta normalmente atribui um **número de teste** gratuito à empresa — ótimo para experimentar a plataforma sem custo, mas com uma restrição importante: só entrega mensagem para até **5 números de telefone** cadastrados manualmente como destinatários permitidos (painel da Meta → WhatsApp → Configuração da API → "Para" → "Gerenciar lista de números de telefone"), cada um confirmado por um código de verificação. Isso é suficiente para a própria empresa testar o agente, mas não para atender clientes reais.
 
@@ -221,11 +221,11 @@ Para usar um **número de WhatsApp real**, sem esse limite, a empresa (com CNPJ)
 
 > Nota: o fluxo de conexão acima foi testado com uma conta da Meta que já tinha histórico/infraestrutura de negócio configurada. Se você estiver testando com uma conta pessoal do Facebook totalmente nova, é possível que a Meta peça uma etapa extra de verificação de identidade antes de liberar o Embedded Signup — isso é comportamento padrão da Meta para contas novas, não um problema deste projeto.
 
-### Submeter os templates de mensagem
+### 7.2 Submeter os templates de mensagem
 
 Depois de conectar o WhatsApp, a aba Canais mostra os 4 templates que o agente usa (notificação ao setor, reencaminhamento, atenção e reengajamento) — **a submissão não é automática**: para cada um, clique em "Ver prévia do template" e depois em "Confirmar e enviar para análise" (o texto já vem pronto, com o nome do agente e da empresa preenchidos sozinhos). A Meta pode levar de algumas horas a alguns dias para aprovar — enquanto estiver "Em análise", a tela verifica sozinha a cada minuto. O agente só consegue encaminhar/notificar/reengajar de verdade depois que os templates relevantes estiverem aprovados.
 
-## Como testar
+## 7.3 Como testar
 
 ```bash
 cd backend
@@ -234,7 +234,7 @@ pip install -r requirements.txt
 pytest testes/ -v
 ```
 
-## Segurança
+## 8. Segurança
 
 - Senhas nunca são armazenadas em texto puro (hash com bcrypt).
 - Sessões usam tokens JWT com expiração.
