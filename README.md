@@ -14,13 +14,11 @@ O agente é **receptivo** por natureza: não existe abordagem automática nem im
 
 Três vídeos mostrando o agente funcionando de ponta a ponta pelo WhatsApp de verdade — do lado do cliente e do painel em tempo real.
 
-| Vídeo | O que mostra |
-|---|---|
-| [Vídeo 1 — Encaminhamento para um setor humano](Demonstracao/Video_1.mp4) | O agente identifica que não pode resolver sozinho, encaminha o atendimento para o setor certo e notifica o time humano pelo WhatsApp |
-| [Vídeo 2 — Resolução automática pela base de conhecimento](Demonstracao/Video_2.mp4) | O cliente pergunta algo já documentado e o agente responde sozinho, sem gerar trabalho para nenhum humano |
-| [Vídeo 3 — Teto de mensagens livres](Demonstracao/Video_3.mp4) | A conversa atinge o limite de mensagens livres configurado, mostrando o controle de custo por atendimento |
+https://github.com/user-attachments/assets/bca20643-888b-4f6a-83a9-8d7d71ec792c
 
-> As legendas acima seguem a ordem dos arquivos — se algum vídeo mostrar outro caso, me avise que eu ajusto o texto.
+https://github.com/user-attachments/assets/8d4763e5-7248-4c48-b068-8db9881848a6
+
+https://github.com/user-attachments/assets/4a26de79-6d9d-437e-a1ff-e936331eec32
 
 ## Funcionalidades
 
@@ -215,7 +213,7 @@ Ao conectar pela primeira vez, a Meta normalmente atribui um **número de teste*
 
 Para usar um **número de WhatsApp real**, sem esse limite, a empresa (com CNPJ) precisa passar pela **verificação de negócio da Meta** (Gerenciador de Negócios → Configurações de segurança → Verificação de negócio — envio de documentos da empresa). Depois de verificado, o número passa a receber mensagem de qualquer cliente normalmente, e as mensagens fora da janela gratuita de atendimento de 24h passam a ter custo real, cobrado pela Meta diretamente na conta de pagamento cadastrada naquele Gerenciador de Negócios — nunca na conta de quem criou o app usado para a conexão.
 
-> Nota de quem publicou este projeto: o fluxo de conexão acima foi testado com uma conta da Meta que já tinha histórico/infraestrutura de negócio configurada. Se você estiver testando com uma conta pessoal do Facebook totalmente nova, é possível que a Meta peça uma etapa extra de verificação de identidade antes de liberar o Embedded Signup — isso é comportamento padrão da Meta para contas novas, não um problema deste projeto.
+> Nota: o fluxo de conexão acima foi testado com uma conta da Meta que já tinha histórico/infraestrutura de negócio configurada. Se você estiver testando com uma conta pessoal do Facebook totalmente nova, é possível que a Meta peça uma etapa extra de verificação de identidade antes de liberar o Embedded Signup — isso é comportamento padrão da Meta para contas novas, não um problema deste projeto.
 
 ### Submeter os templates de mensagem
 
