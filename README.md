@@ -4,6 +4,8 @@ Plataforma SaaS multi-tenant de um agente de IA para **atendimento receptivo** p
 
 Cada empresa que se cadastra ganha seu próprio agente, isolado das demais, sem precisar de uma implantação separada: é a mesma aplicação atendendo várias empresas ao mesmo tempo, cada uma vendo apenas os seus próprios dados.
 
+🔗 **Aplicação em produção:** [agenteatendimento.projetostechmauricio.lol](https://agenteatendimento.projetostechmauricio.lol/)
+
 ## O problema que este projeto resolve
 
 Empresas que recebem mensagens de clientes pelo WhatsApp costumam depender de um time humano até para perguntas repetitivas — horário de funcionamento, política de troca, como usar um produto — que já estão documentadas em algum lugar, só não de um jeito que o cliente consiga achar sozinho. Este projeto automatiza a primeira linha desse atendimento: o agente lê a base de conhecimento da empresa, responde o que consegue responder com segurança, e só aciona um humano quando a pergunta foge do que está documentado ou exige uma ação humana de verdade.
