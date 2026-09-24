@@ -225,7 +225,7 @@ Para usar um **número de WhatsApp real**, sem esse limite, a empresa (com CNPJ)
 
 Depois de conectar o WhatsApp, a aba Canais mostra os 4 templates que o agente usa (notificação ao setor, reencaminhamento, atenção e reengajamento) — **a submissão não é automática**: para cada um, clique em "Ver prévia do template" e depois em "Confirmar e enviar para análise" (o texto já vem pronto, com o nome do agente e da empresa preenchidos sozinhos). A Meta pode levar de algumas horas a alguns dias para aprovar — enquanto estiver "Em análise", a tela verifica sozinha a cada minuto. O agente só consegue encaminhar/notificar/reengajar de verdade depois que os templates relevantes estiverem aprovados.
 
-## 7.3 Como testar
+### 7.3 Como testar
 
 ```bash
 cd backend
