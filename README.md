@@ -14,9 +14,15 @@ O agente é **receptivo** por natureza: não existe abordagem automática nem im
 
 Três vídeos mostrando o agente funcionando de ponta a ponta pelo WhatsApp de verdade — do lado do cliente e do painel em tempo real.
 
+**Demonstração da plataforma**
+
 https://github.com/user-attachments/assets/bca20643-888b-4f6a-83a9-8d7d71ec792c
 
+**Demonstração do funcionamento do agente no WhatsApp**
+
 https://github.com/user-attachments/assets/8d4763e5-7248-4c48-b068-8db9881848a6
+
+**Outra demonstração do funcionamento do agente no WhatsApp**
 
 https://github.com/user-attachments/assets/4a26de79-6d9d-437e-a1ff-e936331eec32
 
