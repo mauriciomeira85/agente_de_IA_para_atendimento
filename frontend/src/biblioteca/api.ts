@@ -16,6 +16,9 @@
 // ==============================================================================
 
 import type {
+  RascunhoDeTemplate,
+  ResultadoDoEnvioDeTemplate,
+  TemplateDoPainel,
   Atendimento,
   CanalWhatsApp,
   ConfiguracaoAgente,
@@ -353,6 +356,32 @@ export async function enviarDadosDoDashboardAgora(id: number) {
  * como parâmetro de URL — WebSockets do navegador não permitem enviar o
  * cabeçalho "Authorization" como as chamadas HTTP normais.
  */
+// --- Painel único de templates (aba Canais) ---
+// Lista os templates do agente com status real na Meta, gera um rascunho do
+// template de abordagem com IA e envia todos para análise num clique (ver
+// backend/app/rotas/templates_whatsapp.py).
+export async function listarTemplatesDoPainel() {
+  return chamarApi<TemplateDoPainel[]>("/api/canais/whatsapp/templates");
+}
+
+export async function gerarRascunhoDeTemplateComIa() {
+  return chamarApi<RascunhoDeTemplate>("/api/canais/whatsapp/templates/rascunho-ia", { metodo: "POST" });
+}
+
+export async function enviarTemplate(chave: string, textoAbordagem: string | null) {
+  return chamarApi<ResultadoDoEnvioDeTemplate>("/api/canais/whatsapp/templates/enviar", {
+    metodo: "POST",
+    corpo: { chave, texto_abordagem: textoAbordagem },
+  });
+}
+
+export async function enviarTodosOsTemplates(textoAbordagem: string | null) {
+  return chamarApi<ResultadoDoEnvioDeTemplate[]>("/api/canais/whatsapp/templates/enviar-todos", {
+    metodo: "POST",
+    corpo: { texto_abordagem: textoAbordagem },
+  });
+}
+
 export function obterUrlWebSocketDeConversas(): string | null {
   const token = obterToken();
   if (!token) return null;

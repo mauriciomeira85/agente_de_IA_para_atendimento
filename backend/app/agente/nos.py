@@ -32,6 +32,7 @@ import structlog
 from app.agente.estados import EstadoConversa
 from app.agente.ferramentas import (
     NUMERO_MAXIMO_DE_MENSAGENS_LIVRES_ANTES_DO_ENCAMINHAMENTO,
+    PREFIXOS_DE_FALHA_DA_ACAO,
     ContextoDoTurno,
     RodadaDoTurno,
     forcar_encaminhamento_por_limite_de_mensagens,
@@ -300,6 +301,7 @@ async def executar_turno_do_agente(estado: EstadoConversa) -> dict:
             id_para_log=estado.get("id_atendimento"),
             ferramentas_terminais=frozenset({"nao_responder"}),
             ferramentas_de_fechamento=frozenset({"encaminhar_para_setor"}),
+            prefixos_de_falha_da_acao=PREFIXOS_DE_FALHA_DA_ACAO,
         )
     else:
         ferramentas = montar_ferramentas_do_turno(contexto)
@@ -309,6 +311,7 @@ async def executar_turno_do_agente(estado: EstadoConversa) -> dict:
             id_para_log=estado.get("id_atendimento"),
             ferramentas_terminais=frozenset({"nao_responder"}),
             ferramentas_de_fechamento=frozenset({"marcar_como_resolvido", "encaminhar_para_setor"}),
+            prefixos_de_falha_da_acao=PREFIXOS_DE_FALHA_DA_ACAO,
         )
 
         # Rede de segurança do teto de custo por atendimento: esta era a

@@ -43,7 +43,7 @@ export default function MenuLateral() {
 
       <nav className="flex-1 py-4 overflow-y-auto">
         {ABAS.map((aba) => {
-          const ativo = caminhoAtual === aba.caminho;
+          const ativo = caminhoAtual === aba.caminho || caminhoAtual.startsWith(`${aba.caminho}/`);
           return (
             <Link
               key={aba.caminho}

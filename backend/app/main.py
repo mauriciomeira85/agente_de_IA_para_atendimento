@@ -25,6 +25,7 @@ from app.rotas import (
     painel,
     setores,
     tempo_real,
+    templates_whatsapp,
     whatsapp_webhook,
 )
 
@@ -59,6 +60,7 @@ aplicativo.include_router(base_de_conhecimento.roteador)
 aplicativo.include_router(conversas.roteador)
 aplicativo.include_router(configuracao_agente.roteador)
 aplicativo.include_router(canais.roteador)
+aplicativo.include_router(templates_whatsapp.roteador)
 aplicativo.include_router(integracoes.roteador)
 aplicativo.include_router(whatsapp_webhook.roteador)
 aplicativo.include_router(tempo_real.roteador)

@@ -14,15 +14,13 @@
 // precisar copiar Phone Number ID, WABA ID ou token de acesso na mão (ver
 // biblioteca/embeddedSignup.ts para o passo a passo técnico completo).
 //
-// Assim que o número está conectado, aparecem os QUATRO templates
-// pré-aprovados que este projeto usa (ver
-// backend/app/integracoes_externas/meta_templates.py) — notificação ao
-// setor humano, reencaminhamento, atenção e reengajamento. Diferente dos
-// outros dois projetos da linhagem, nenhum deles tem uma caixa de texto
-// editável: o texto é fixo, só a prévia (com um exemplo) aparece antes de
-// confirmar o envio para análise da Meta. Enquanto o status de um
-// template ficar "Em análise", a seção correspondente verifica sozinha a
-// cada minuto, sem precisar recarregar a página.
+// Layout no padrão da aba Canais do Impulso AI Agent (26/09/2026, igual nos
+// três agentes): o cartão do WhatsApp tem o selo de status, o número
+// conectado, a data e a hora da última conexão e um ícone "?" que abre o
+// guia passo a passo (canais/whatsapp/guia). Assim que o número está
+// conectado, aparece o painel "Templates do WhatsApp"
+// (componentes/PainelDeTemplates.tsx), com envio individual ou de todos os
+// pendentes.
 //
 // Abaixo de tudo, uma ÚNICA conta (configurada no backend, ver
 // email_com_acesso_a_conexao_manual_whatsapp em configuracoes.py) também
@@ -36,20 +34,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   conectarCanalWhatsApp,
   conectarCanalWhatsAppManualmente,
-  criarTemplateDeAtencao,
-  criarTemplateDeNotificacao,
-  criarTemplateDeReencaminhamento,
-  criarTemplateDeReengajamento,
   obterCanalWhatsApp,
   obterConfiguracaoEmbeddedSignup,
-  obterPreviaDoTemplateDeAtencao,
-  obterPreviaDoTemplateDeNotificacao,
-  obterPreviaDoTemplateDeReencaminhamento,
-  obterPreviaDoTemplateDeReengajamento,
-  obterStatusDoTemplateDeAtencao,
-  obterStatusDoTemplateDeNotificacao,
-  obterStatusDoTemplateDeReencaminhamento,
-  obterStatusDoTemplateDeReengajamento,
 } from "@/biblioteca/api";
 import {
   abrirJanelaDeConexao,
@@ -58,7 +44,16 @@ import {
   tentarFecharComoJanelaDeCallback,
   type DadosDoEmbeddedSignup,
 } from "@/biblioteca/embeddedSignup";
-import type { CanalWhatsApp, TemplateWhatsApp } from "@/biblioteca/tipos";
+import type { CanalWhatsApp } from "@/biblioteca/tipos";
+import Icone from "@/componentes/Icones";
+import PainelDeTemplates from "@/componentes/PainelDeTemplates";
+
+function formatarDataEHora(iso: string) {
+  const data = new Date(iso);
+  const dia = data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const hora = data.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  return `${dia} às ${hora}`;
+}
 
 const campo = "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-marca-600";
 
@@ -149,8 +144,11 @@ export default function PaginaDeCanais() {
         id_waba: dadosDoNumero?.idWaba,
       });
       setCanalWhatsapp(salvo);
-    } catch {
-      setErro("Não foi possível concluir a conexão com o WhatsApp. Tente novamente.");
+    } catch (falha) {
+      // Mostra o motivo que o backend devolveu (padronizado a partir do
+      // Agente de Cobrança) — a mensagem genérica sozinha escondia a causa.
+      const motivo = falha instanceof Error && falha.message ? ` Motivo: ${falha.message}` : "";
+      setErro(`Não foi possível concluir a conexão com o WhatsApp.${motivo}`);
     } finally {
       setConectando(false);
     }
@@ -158,232 +156,105 @@ export default function PaginaDeCanais() {
 
   if (carregando) return <p className="text-sm text-slate-500">Carregando canais...</p>;
 
+  const conectado = !!canalWhatsapp;
+
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-2xl font-semibold text-marca-escuro">Canais</h1>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold text-marca-escuro">
+          <Icone nome="tomada" className="h-6 w-6 text-marca-600" /> Canais
+        </h1>
+        <p className="text-sm text-slate-500">
+          Conecte o número de WhatsApp que o agente vai usar para responder os clientes da empresa.
+        </p>
+      </div>
 
-      <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-marca-escuro">WhatsApp</h2>
-          <p className="text-sm text-slate-500">
-            Conecte o número de WhatsApp que o agente vai usar para responder os clientes da empresa.
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-start justify-between gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-marca-50">
+              <Icone nome="mensagem" className="h-5 w-5 text-marca-500" />
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href="/canais/whatsapp/guia"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir guia de configuração do WhatsApp"
+                title="Como configurar o WhatsApp"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-marca-700"
+              >
+                <Icone nome="ajuda" className="h-5 w-5" />
+              </a>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                  conectado ? "border-emerald-300 text-emerald-700" : "border-slate-300 text-slate-600"
+                }`}
+              >
+                {conectado && <Icone nome="confirmado" className="h-3 w-3" />}
+                {conectado ? "Conectado" : "Não conectado"}
+              </span>
+            </div>
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-marca-escuro">WhatsApp</h2>
+          <p className="text-sm text-slate-500">Número comercial usado pelo agente para conversar com os clientes.</p>
+
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Número do WhatsApp conectado</label>
+              <input
+                value={canalWhatsapp?.numero_exibicao || ""}
+                readOnly
+                aria-readonly="true"
+                placeholder="Será preenchido após a conexão com a Meta"
+                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+              />
+              {canalWhatsapp && (
+                <p className="text-xs text-slate-500">Conectado em {formatarDataEHora(canalWhatsapp.conectado_em)}</p>
+              )}
+            </div>
+            <button
+              onClick={aoClicarEmConectar}
+              disabled={conectando}
+              className="w-full rounded-lg bg-marca-600 px-4 py-2 text-sm font-medium text-white hover:bg-marca-700 disabled:opacity-60"
+            >
+              {conectando ? "Conectando…" : conectado ? "Renovar autorização Meta" : "Conectar WhatsApp"}
+            </button>
+            <p className="text-xs text-slate-500">
+              A empresa entra na Meta, escolhe ou cria sua conta do WhatsApp Business e confirma o número por SMS ou
+              ligação. Ao concluir, o número autorizado aparece automaticamente aqui. WABA ID, Phone Number ID e token
+              permanecem protegidos e não são exibidos.
+            </p>
+            {erro && <p className="text-xs text-red-600">{erro}</p>}
+          </div>
+        </section>
+
+        <section className="flex flex-col rounded-xl border border-marca-100 bg-marca-50/60 p-6">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
+            <Icone nome="documento_ok" className="h-5 w-5 text-marca-500" />
+          </span>
+          <h2 className="mt-4 text-base font-semibold text-marca-escuro">Como ativar o WhatsApp</h2>
+          <p className="mt-1 flex-1 text-sm text-slate-600">
+            Conta Meta, portfólio empresarial, número confirmado, Configuração do Agente, setores, conexão e templates
+            aprovados: o guia mostra cada passo na ordem, do zero até o primeiro atendimento automático.
           </p>
-        </div>
+          <a
+            href="/canais/whatsapp/guia"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-marca-600 bg-white px-4 py-2 text-sm font-medium text-marca-700 hover:bg-marca-50"
+          >
+            Abrir o guia passo a passo <Icone nome="link_externo" />
+          </a>
+        </section>
+      </div>
 
-        {canalWhatsapp && (
-          <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
-            Conectado desde {new Date(canalWhatsapp.conectado_em).toLocaleDateString("pt-BR")}
-            {canalWhatsapp.numero_exibicao ? ` — número ${canalWhatsapp.numero_exibicao}` : ""}
-          </p>
-        )}
-
-        {erro && <p className="text-sm text-red-600">{erro}</p>}
-
-        <button
-          onClick={aoClicarEmConectar}
-          disabled={conectando}
-          className="px-4 py-2 text-sm rounded-lg bg-marca-600 text-white hover:bg-marca-700 disabled:opacity-60"
-        >
-          {conectando ? "Conectando..." : canalWhatsapp ? "Reconectar WhatsApp" : "Conectar WhatsApp"}
-        </button>
-      </section>
-
-      {canalWhatsapp && (
-        <SecaoDeTemplate
-          titulo="Template de notificação ao setor"
-          descricao="Mensagem que a Meta exige, pré-aprovada, para avisar o setor humano quando um atendimento é encaminhado pela primeira vez — esse contato quase nunca tem uma janela de 24h aberta com o WhatsApp comercial da empresa."
-          obterPrevia={obterPreviaDoTemplateDeNotificacao}
-          obterStatus={obterStatusDoTemplateDeNotificacao}
-          criar={criarTemplateDeNotificacao}
-        />
-      )}
-
-      {canalWhatsapp && (
-        <SecaoDeTemplate
-          titulo="Template de reencaminhamento"
-          descricao="Mensagem usada a partir do SEGUNDO encaminhamento em diante — quando um atendimento que já tinha sido passado adiante volta com algo novo."
-          obterPrevia={obterPreviaDoTemplateDeReencaminhamento}
-          obterStatus={obterStatusDoTemplateDeReencaminhamento}
-          criar={criarTemplateDeReencaminhamento}
-        />
-      )}
-
-      {canalWhatsapp && (
-        <SecaoDeTemplate
-          titulo="Template de atenção"
-          descricao="Mensagem usada quando o guardrail de entrada detecta uma tentativa de manipulação do agente durante a conversa — avisa o setor humano para revisar o atendimento antes de tratá-lo como comum."
-          obterPrevia={obterPreviaDoTemplateDeAtencao}
-          obterStatus={obterStatusDoTemplateDeAtencao}
-          criar={criarTemplateDeAtencao}
-        />
-      )}
-
-      {canalWhatsapp && (
-        <SecaoDeTemplate
-          titulo="Template de reengajamento"
-          descricao="Mensagem que a Meta exige, pré-aprovada, para o agente conseguir retomar contato com um atendimento que já estava numa conversa de verdade mas ficou 3 dias ou mais sem responder — sem ela, esse atendimento fica parado para sempre, já que a janela de 24h também fecha nesse caso."
-          obterPrevia={obterPreviaDoTemplateDeReengajamento}
-          obterStatus={obterStatusDoTemplateDeReengajamento}
-          criar={criarTemplateDeReengajamento}
-        />
-      )}
+      {canalWhatsapp && <PainelDeTemplates />}
 
       {mostrarConexaoManual && (
         <FormularioDeConexaoManual canalAtual={canalWhatsapp} aoConectar={setCanalWhatsapp} />
       )}
     </div>
-  );
-}
-
-const RÓTULOS_DE_STATUS_DO_TEMPLATE: Record<string, { texto: string; cor: string }> = {
-  PENDING: { texto: "Em análise pela Meta", cor: "text-amber-600 bg-amber-50 border-amber-200" },
-  APPROVED: { texto: "Aprovado", cor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-  REJECTED: { texto: "Rejeitado pela Meta", cor: "text-red-600 bg-red-50 border-red-200" },
-};
-
-// Enquanto o template estiver "Em análise", a tela pergunta de novo para
-// a Meta a cada 60 segundos — é a forma mais simples de o status
-// atualizar sozinho na tela sem precisar recarregar a página. (Existe uma
-// forma mais sofisticada — a Meta consegue avisar o nosso webhook em
-// tempo real quando o status muda — mas isso exigiria assinar mais um
-// campo no painel da Meta; essa verificação periódica já resolve bem o
-// caso de uso, sem depender de configuração extra.)
-const INTERVALO_DE_VERIFICACAO_MS = 60_000;
-
-/**
- * Mostra o status de um dos quatro templates deste projeto e o fluxo de
- * criação com prévia: um botão monta o texto pronto (com um exemplo) para
- * conferência, e só então a pessoa confirma o envio de verdade para
- * análise da Meta. Diferente do Agente Comercial SDR e do Agente de
- * Cobrança, nenhum template deste projeto tem uma caixa de texto
- * editável — o conteúdo é fixo (ver backend/app/esquemas/canal.py),
- * então os QUATRO templates (notificação, reencaminhamento, atenção,
- * reengajamento) reaproveitam este mesmo componente, só trocando título,
- * descrição e as três funções de API.
- */
-function SecaoDeTemplate({
-  titulo,
-  descricao,
-  obterPrevia,
-  obterStatus,
-  criar,
-}: {
-  titulo: string;
-  descricao: string;
-  obterPrevia: () => Promise<{ texto: string }>;
-  obterStatus: () => Promise<TemplateWhatsApp>;
-  criar: () => Promise<TemplateWhatsApp>;
-}) {
-  const [template, setTemplate] = useState<TemplateWhatsApp | null>(null);
-  const [carregando, setCarregando] = useState(true);
-  const [previa, setPrevia] = useState<string | null>(null);
-  const [carregandoPrevia, setCarregandoPrevia] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  useEffect(() => {
-    obterStatus()
-      .then(setTemplate)
-      .finally(() => setCarregando(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (template?.status !== "PENDING") return;
-    const intervalo = setInterval(() => {
-      obterStatus().then(setTemplate);
-    }, INTERVALO_DE_VERIFICACAO_MS);
-    return () => clearInterval(intervalo);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template?.status]);
-
-  async function aoPedirPrevia() {
-    setErro(null);
-    setCarregandoPrevia(true);
-    try {
-      const resultado = await obterPrevia();
-      setPrevia(resultado.texto);
-    } catch {
-      setErro("Não foi possível montar a prévia do template. Tente novamente.");
-    } finally {
-      setCarregandoPrevia(false);
-    }
-  }
-
-  async function aoConfirmarEnvio() {
-    setErro(null);
-    setEnviando(true);
-    try {
-      const resultado = await criar();
-      setTemplate(resultado);
-      setPrevia(null);
-    } catch {
-      setErro("Não foi possível enviar o template para análise da Meta. Tente novamente.");
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  if (carregando) return null;
-
-  const status = template?.status ? RÓTULOS_DE_STATUS_DO_TEMPLATE[template.status] : null;
-  const podeCriar = !template?.status || template.status === "REJECTED";
-
-  return (
-    <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-marca-escuro">{titulo}</h2>
-        <p className="text-sm text-slate-500">{descricao}</p>
-      </div>
-
-      {status && (
-        <p className={`text-sm border rounded-lg px-4 py-2 ${status.cor}`}>
-          {status.texto}
-          {template?.status === "PENDING" && " — esta tela verifica sozinha a cada minuto."}
-        </p>
-      )}
-
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
-
-      {!previa && podeCriar && (
-        <button
-          onClick={aoPedirPrevia}
-          disabled={carregandoPrevia}
-          className="px-4 py-2 text-sm rounded-lg bg-marca-600 text-white hover:bg-marca-700 disabled:opacity-60"
-        >
-          {carregandoPrevia
-            ? "Montando prévia..."
-            : template?.status === "REJECTED"
-              ? "Ver prévia e enviar novamente"
-              : "Ver prévia do template"}
-        </button>
-      )}
-
-      {previa && (
-        <div className="border border-slate-200 rounded-lg p-4 space-y-3 bg-slate-50">
-          <p className="text-xs text-slate-500">
-            É exatamente isto que vai ser enviado à Meta para análise — confira antes de confirmar:
-          </p>
-          <p className="text-sm text-slate-800 bg-white border border-slate-200 rounded-lg p-3">{previa}</p>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setPrevia(null)}
-              disabled={enviando}
-              className="px-4 py-2 text-sm text-slate-600 hover:text-marca-700"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={aoConfirmarEnvio}
-              disabled={enviando}
-              className="px-4 py-2 text-sm rounded-lg bg-marca-600 text-white hover:bg-marca-700 disabled:opacity-60"
-            >
-              {enviando ? "Enviando..." : "Confirmar e enviar para análise"}
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -488,19 +359,13 @@ function FormularioDeConexaoManual({
 // ==============================================================================
 // RESUMO
 // ------------------------------------------------------------------------------
-// Este arquivo implementa a aba Canais: mostra o status da conexão do
-// WhatsApp já salva e o botão "Conectar WhatsApp", que abre a janela de
-// login da Meta (via biblioteca/embeddedSignup.ts), junta o código de
-// autorização com o número/WABA escolhidos e envia tudo para o backend
-// concluir a conexão (POST /api/canais/whatsapp/conectar). Uma vez
-// conectado, o componente reaproveitável SecaoDeTemplate aparece quatro
-// vezes — notificação, reencaminhamento, atenção e reengajamento — cada
-// uma mostrando o status do template (verificando sozinha a cada minuto
-// enquanto estiver "Em análise") e um fluxo de prévia (sem edição, texto
-// fixo) antes de confirmar o envio de verdade para a Meta. Para a única
-// conta autorizada pelo backend, mais um formulário
-// (FormularioDeConexaoManual) permite colar credenciais existentes
-// diretamente — usado só enquanto não há um número comercial disponível.
-// Sem seção de integrações de calendário — não existe desfecho "Agendar
-// reunião" neste domínio.
+// Este arquivo implementa a aba Canais no layout do Impulso AI Agent (igual
+// nos três agentes): o cartão do WhatsApp (selo de status, número, data e
+// hora da última conexão, ícone do guia e o botão que abre a janela de
+// login da Meta via biblioteca/embeddedSignup.ts e conclui a conexão em
+// POST /api/canais/whatsapp/conectar), um cartão que leva ao guia passo a
+// passo e, depois de conectado, o painel de templates
+// (componentes/PainelDeTemplates.tsx). Para a
+// única conta autorizada pelo backend, FormularioDeConexaoManual permite
+// colar credenciais existentes.
 // ==============================================================================

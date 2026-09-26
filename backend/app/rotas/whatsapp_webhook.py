@@ -124,7 +124,10 @@ def _forma_canonica_do_numero_brasileiro(numero: str) -> str:
     número salvo estar errado, não a lista de permissões em si.
     """
     sem_prefixo_do_pais = numero[2:] if numero.startswith("55") else numero
-    if len(sem_prefixo_do_pais) == 10:  # DDD + 8 dígitos: celular sem o 9º dígito
+    # DDD + 8 dígitos começando com 6 a 9 é celular sem o 9º dígito. Com 2 a 5
+    # é telefone FIXO (que também pode ter WhatsApp Business) e fica como
+    # está: acrescentar o 9 nele geraria um número inexistente (26/09/2026).
+    if len(sem_prefixo_do_pais) == 10 and sem_prefixo_do_pais[2] in "6789":
         sem_prefixo_do_pais = f"{sem_prefixo_do_pais[:2]}9{sem_prefixo_do_pais[2:]}"
     return f"55{sem_prefixo_do_pais}"
 
@@ -178,6 +181,37 @@ async def receber_evento_whatsapp(
     """Recebe eventos de mensagem e de status da WhatsApp Cloud API, já validados pelo Worker do Cloudflare."""
     _validar_segredo_do_worker(authorization)
     payload = await request.json()
+
+    # --- 0) Resultado da análise de um template pela Meta (padronizado com os
+    # Agentes de Cobrança e SDR, 25/09/2026). A Meta manda
+    # "message_template_status_update" com o nome do template e o novo
+    # status; avisamos em tempo real a(s) empresa(s) dona(s) daquela WABA,
+    # para o painel de templates da aba Canais atualizar sozinho. ---
+    for entrada in payload.get("entry", []):
+        for mudanca in entrada.get("changes", []):
+            if mudanca.get("field") != "message_template_status_update":
+                continue
+            valor = mudanca.get("value", {})
+            logger.info(
+                "status_de_template_atualizado_pela_meta",
+                id_waba=entrada.get("id"),
+                template=valor.get("message_template_name"),
+                status=valor.get("event"),
+                motivo=valor.get("reason"),
+            )
+            empresas = sessao.scalars(
+                select(IntegracaoWhatsApp.id_empresa).where(IntegracaoWhatsApp.id_waba_meta == str(entrada.get("id")))
+            ).all()
+            for id_empresa in empresas:
+                await publicar_evento_de_conversa(
+                    id_empresa,
+                    {
+                        "tipo": "template_atualizado",
+                        "nome": valor.get("message_template_name"),
+                        "status": valor.get("event"),
+                        "motivo": valor.get("reason"),
+                    },
+                )
 
     # --- 1) Atualizações de status (mensagem entregue / lida / falhou) ---
     for evento in extrair_status_do_payload(payload):

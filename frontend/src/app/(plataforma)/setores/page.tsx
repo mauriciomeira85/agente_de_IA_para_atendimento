@@ -121,12 +121,17 @@ function ModalDeSetor({
   const [contatoNome, setContatoNome] = useState(setorParaEditar?.contato_nome || "");
   const [contatoTelefone, setContatoTelefone] = useState(setorParaEditar?.contato_telefone || "");
   const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   async function aoSubmeter(evento: React.FormEvent) {
     evento.preventDefault();
+    setErro(null);
     setSalvando(true);
     try {
       await aoSalvar({ nome, contato_nome: contatoNome, contato_telefone: contatoTelefone });
+    } catch (falha) {
+      // O backend valida o WhatsApp de quem recebe (DDD + número) — mostra o motivo em vez de falhar em silêncio.
+      setErro(falha instanceof Error ? falha.message : "Não foi possível salvar o setor.");
     } finally {
       setSalvando(false);
     }
@@ -157,6 +162,10 @@ function ModalDeSetor({
               placeholder="5511999999999"
             />
           </div>
+
+          {erro && (
+            <p className="text-sm bg-red-50 text-red-700 border border-red-200 rounded-lg px-3 py-2">{erro}</p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={aoFechar} className="px-4 py-2 text-sm text-slate-600 hover:text-marca-700">

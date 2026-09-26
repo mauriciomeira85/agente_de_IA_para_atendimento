@@ -49,6 +49,18 @@ logger = structlog.get_logger(__name__)
 URL_BASE_GRAPH_API = f"https://graph.facebook.com/{configuracoes.meta_versao_api}"
 
 
+def _destino_do_envio(url: str, corpo: dict, id_template_existente: str | None) -> tuple[str, dict]:
+    """
+    Reenvio de um template REJEITADO: a Meta não aceita criar outro com o
+    mesmo nome, mas permite EDITAR o rejeitado (POST /{id_do_template} só
+    com os `components`; nome, idioma e categoria ficam os mesmos). A
+    edição volta o template para análise.
+    """
+    if not id_template_existente:
+        return url, corpo
+    return f"{URL_BASE_GRAPH_API}/{id_template_existente}", {"components": corpo["components"]}
+
+
 def _montar_texto_do_template_de_notificacao(nome_do_agente: str, nome_da_empresa: str) -> str:
     """
     Monta o texto do template com o nome do agente e da empresa já
@@ -86,6 +98,7 @@ async def criar_template_de_notificacao(
     nome_do_template: str,
     nome_do_agente: str,
     nome_da_empresa: str,
+    id_template_existente: str | None = None,
 ) -> None:
     """
     Submete o template de notificação (encaminhamento para um setor
@@ -117,6 +130,7 @@ async def criar_template_de_notificacao(
     }
     cabecalhos = {"Authorization": f"Bearer {token_de_acesso}"}
 
+    url, corpo = _destino_do_envio(url, corpo, id_template_existente)
     async with httpx.AsyncClient(timeout=15) as cliente:
         resposta = await cliente.post(url, json=corpo, headers=cabecalhos)
 
@@ -166,6 +180,7 @@ async def criar_template_de_reengajamento(
     nome_do_template: str,
     nome_do_agente: str,
     nome_da_empresa: str,
+    id_template_existente: str | None = None,
 ) -> None:
     """Submete o template de reengajamento para análise da Meta. Categoria "MARKETING" — é uma mensagem para um cliente externo, não um aviso interno."""
     url = f"{URL_BASE_GRAPH_API}/{id_waba}/message_templates"
@@ -186,6 +201,7 @@ async def criar_template_de_reengajamento(
     }
     cabecalhos = {"Authorization": f"Bearer {token_de_acesso}"}
 
+    url, corpo = _destino_do_envio(url, corpo, id_template_existente)
     async with httpx.AsyncClient(timeout=15) as cliente:
         resposta = await cliente.post(url, json=corpo, headers=cabecalhos)
 
@@ -238,6 +254,7 @@ async def criar_template_de_reencaminhamento(
     nome_do_template: str,
     nome_do_agente: str,
     nome_da_empresa: str,
+    id_template_existente: str | None = None,
 ) -> None:
     """
     Submete o template de reencaminhamento (segundo encaminhamento em
@@ -268,6 +285,7 @@ async def criar_template_de_reencaminhamento(
     }
     cabecalhos = {"Authorization": f"Bearer {token_de_acesso}"}
 
+    url, corpo = _destino_do_envio(url, corpo, id_template_existente)
     async with httpx.AsyncClient(timeout=15) as cliente:
         resposta = await cliente.post(url, json=corpo, headers=cabecalhos)
 
@@ -321,6 +339,7 @@ async def criar_template_de_atencao(
     nome_do_template: str,
     nome_do_agente: str,
     nome_da_empresa: str,
+    id_template_existente: str | None = None,
 ) -> None:
     """
     Submete o template de atenção (encaminhamento por suspeita de
@@ -351,6 +370,7 @@ async def criar_template_de_atencao(
     }
     cabecalhos = {"Authorization": f"Bearer {token_de_acesso}"}
 
+    url, corpo = _destino_do_envio(url, corpo, id_template_existente)
     async with httpx.AsyncClient(timeout=15) as cliente:
         resposta = await cliente.post(url, json=corpo, headers=cabecalhos)
 
@@ -362,6 +382,37 @@ async def criar_template_de_atencao(
             or detalhe.get("message")
             or "Não foi possível enviar o template de atenção para análise da Meta."
         )
+
+
+async def consultar_templates_da_waba(id_waba: str, token_de_acesso: str) -> dict[str, dict[str, str | None]] | None:
+    """
+    Consulta, numa ÚNICA chamada à Graph API, todos os templates da WABA —
+    nome -> {"id", "status", "motivo"} (motivo = `rejected_reason`, preenchido só
+    quando a Meta rejeita). Usada pelo painel único de templates
+    (rotas/templates_whatsapp.py) e pelo bloqueio da abordagem automática
+    (tarefas/tarefas_monitoramento.py), em vez de uma chamada por template.
+    Devolve None se a consulta falhar (token inválido, WABA inacessível).
+    """
+    url = f"{URL_BASE_GRAPH_API}/{id_waba}/message_templates"
+    parametros = {"fields": "id,name,status,rejected_reason", "limit": 200}
+    cabecalhos = {"Authorization": f"Bearer {token_de_acesso}"}
+
+    async with httpx.AsyncClient(timeout=15) as cliente:
+        resposta = await cliente.get(url, params=parametros, headers=cabecalhos)
+
+    if resposta.status_code >= 400:
+        logger.warning("falha_ao_listar_templates_da_waba", status=resposta.status_code, corpo=resposta.text)
+        return None
+
+    templates: dict[str, dict[str, str | None]] = {}
+    for item in resposta.json().get("data", []):
+        motivo = item.get("rejected_reason")
+        templates[item["name"]] = {
+            "id": item.get("id"),
+            "status": item.get("status"),
+            "motivo": None if motivo in (None, "NONE") else motivo,
+        }
+    return templates
 
 
 async def consultar_status_do_template(id_waba: str, token_de_acesso: str, nome_do_template: str) -> str | None:

@@ -247,6 +247,16 @@ def _ferramenta_consultar_base_de_conhecimento(contexto: ContextoDoTurno) -> Bas
     return consultar_base_de_conhecimento
 
 
+# Começo dos resultados de ferramenta que significam "a ação NÃO aconteceu"
+# (padronizado a partir do Agente de Cobrança). Usado por agente/nos.py
+# junto com loop_de_ferramentas.py (`prefixos_de_falha_da_acao`): quando
+# uma ferramenta de fechamento devolve um destes, o texto pré-escrito pelo
+# modelo é descartado e ele escreve de novo, já sabendo da falha. Toda nova
+# mensagem de falha de ferramenta de fechamento deve começar com um destes
+# (o guardrail de setor já começa com "Encaminhamento NÃO enviado").
+PREFIXOS_DE_FALHA_DA_ACAO: tuple[str, ...] = ("Encaminhamento NÃO enviado",)
+
+
 def _ferramenta_encaminhar_para_setor(contexto: ContextoDoTurno, eh_reencaminhamento: bool = False) -> BaseTool:
     """
     Fábrica da ferramenta de encaminhamento — parametrizada por
@@ -291,10 +301,15 @@ def _ferramenta_encaminhar_para_setor(contexto: ContextoDoTurno, eh_reencaminham
             contexto, setor.contato_telefone, resumo_do_atendimento, eh_reencaminhamento=eh_reencaminhamento
         )
         if not sucesso:
+            # Bug real (no Agente de Cobrança, mesmo código): o aviso falhou e o
+            # agente afirmou ao cliente que tinha encaminhado — ninguém foi
+            # avisado de verdade. Agora a falha é honesta e começa com um
+            # PREFIXO_DE_FALHA_DA_ACAO.
             return (
-                f"Encaminhamento registrado para {setor.nome}, mas o aviso via WhatsApp para "
-                f"{setor.contato_nome} falhou. Avise o cliente que o caso foi encaminhado mesmo assim, "
-                "sem mencionar o erro técnico."
+                f"Encaminhamento NÃO enviado: o aviso via WhatsApp para {setor.contato_nome} ({setor.nome}) "
+                "falhou, então NINGUÉM foi avisado agora. O atendimento fica registrado para a equipe ver na "
+                "plataforma. Diga ao cliente, com honestidade e sem detalhe técnico, que a equipe vai analisar "
+                "a solicitação — sem afirmar que alguém já foi avisado."
             )
 
         return (

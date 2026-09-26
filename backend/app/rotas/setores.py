@@ -23,6 +23,22 @@ from app.seguranca import exigir_id_empresa_do_usuario
 roteador = APIRouter(prefix="/api/setores", tags=["Setores"])
 
 
+def _validar_telefone_do_contato(telefone: str) -> None:
+    """
+    WhatsApp de quem recebe o encaminhamento: DDD + 8/9 dígitos, com ou sem
+    o 55 na frente (padronizado a partir do Agente de Cobrança — lá um
+    número com um dígito a menos foi aceito, a Meta recusou o envio e o
+    encaminhamento nunca chegou a ninguém).
+    """
+    digitos = "".join(c for c in telefone if c.isdigit())
+    valido = len(digitos) in (10, 11) or (len(digitos) in (12, 13) and digitos.startswith("55"))
+    if not valido:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="WhatsApp incompleto: informe DDD + número (8 ou 9 dígitos), com ou sem o 55 na frente.",
+        )
+
+
 @roteador.get("", response_model=list[SetorSaida])
 def listar_setores(
     sessao: Session = Depends(obter_sessao),
@@ -40,6 +56,7 @@ def cadastrar_setor(
     id_empresa: int = Depends(exigir_id_empresa_do_usuario),
 ) -> Setor:
     """Cadastra um novo setor (ex.: Vendas, Financeiro, Suporte Técnico)."""
+    _validar_telefone_do_contato(dados.contato_telefone)
     setor = Setor(id_empresa=id_empresa, **dados.model_dump())
     sessao.add(setor)
     sessao.commit()
@@ -59,6 +76,7 @@ def editar_setor(
     if setor is None or setor.id_empresa != id_empresa:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setor não encontrado.")
 
+    _validar_telefone_do_contato(dados.contato_telefone)
     for campo, valor in dados.model_dump().items():
         setattr(setor, campo, valor)
 

@@ -54,6 +54,7 @@ async def rodar_loop_de_ferramentas(
     id_para_log: int | str | None = None,
     ferramentas_terminais: frozenset[str] = frozenset(),
     ferramentas_de_fechamento: frozenset[str] = frozenset(),
+    prefixos_de_falha_da_acao: tuple[str, ...] = (),
 ) -> str | None:
     """
     Roda o loop de turno/passo até o modelo responder só em texto (sem
@@ -92,6 +93,15 @@ async def rodar_loop_de_ferramentas(
     bons estudos!" — ignorando a pergunta original do cliente. O agente
     parecia superficial e sem memória; a causa real era esta, não falta de
     contexto ou de RAG.
+
+    `prefixos_de_falha_da_acao` (padronizado a partir do Agente de Cobrança,
+    25/09/2026): uma ferramenta de fechamento pode FALHAR (setor inexistente,
+    aviso ao setor recusado pela Meta). Se o resultado dela começar com um
+    destes prefixos, o texto que o modelo escreveu ANTES de saber o
+    resultado (ex.: "já encaminhei para o Financeiro") está errado — então
+    NÃO é devolvido: o loop segue e o modelo escreve de novo, já vendo a
+    falha. Bug real no Cobrança: o aviso ao atendente falhou (telefone
+    inválido) e o agente afirmou ao cliente que tinha encaminhado.
 
     As ferramentas em si são responsáveis por registrar qualquer decisão
     que o restante do sistema precise conhecer depois (normalmente através
@@ -157,6 +167,7 @@ async def rodar_loop_de_ferramentas(
             return None
 
         mensagens.append(resposta)
+        acao_de_fechamento_falhou = False
         for chamada in resposta.tool_calls:
             ferramenta = ferramentas_por_nome.get(chamada["name"])
             resultado_da_ferramenta = (
@@ -165,8 +176,15 @@ async def rodar_loop_de_ferramentas(
                 else f"Ferramenta '{chamada['name']}' não está disponível agora."
             )
             mensagens.append(ToolMessage(content=resultado_da_ferramenta, tool_call_id=chamada["id"]))
+            if (
+                chamada["name"] in ferramentas_de_fechamento
+                and prefixos_de_falha_da_acao
+                and str(resultado_da_ferramenta).startswith(prefixos_de_falha_da_acao)
+            ):
+                acao_de_fechamento_falhou = True
 
-        if resposta.content and any(chamada["name"] in ferramentas_de_fechamento for chamada in resposta.tool_calls):
+        chamou_fechamento = any(chamada["name"] in ferramentas_de_fechamento for chamada in resposta.tool_calls)
+        if resposta.content and chamou_fechamento and not acao_de_fechamento_falhou:
             logger.info(
                 "loop_de_ferramentas_concluido_por_ferramenta_de_fechamento",
                 id=id_para_log,

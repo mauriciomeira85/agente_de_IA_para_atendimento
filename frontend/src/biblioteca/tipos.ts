@@ -118,6 +118,39 @@ export interface ConversaDetalhe {
   mensagens: MensagemConversa[];
 }
 
+// Painel único de templates (aba Canais) — ver
+// backend/app/rotas/templates_whatsapp.py.
+export interface TemplateDoPainel {
+  chave: string;
+  titulo: string;
+  descricao: string;
+  categoria: string;
+  nome: string;
+  editavel: boolean;
+  texto: string | null; // texto real enviado à Meta, com as variáveis {{n}}
+  previa: string;
+  status: string | null; // null = ainda não enviado | PENDING | APPROVED | REJECTED ...
+  motivo: string | null;
+  exemplos: string[] | null;
+  legenda: string; // o que cada variável {{n}} recebe no envio
+  id: string | null; // ID do template na Meta (usado para reenviar um rejeitado)
+  texto_padrao: string | null; // só no editável: o modelo recomendado
+}
+
+export interface RascunhoDeTemplate {
+  texto: string;
+  previa: string;
+  gerado_pela_ia: boolean;
+  aviso: string | null;
+}
+
+export interface ResultadoDoEnvioDeTemplate {
+  chave: string;
+  nome: string;
+  resultado: "enviado" | "ja_existia" | "erro";
+  detalhe: string | null;
+}
+
 export interface CanalWhatsApp {
   id_numero_telefone_meta: string;
   numero_exibicao: string | null;

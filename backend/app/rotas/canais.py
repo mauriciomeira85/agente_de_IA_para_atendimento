@@ -44,6 +44,8 @@
 #   GET  /api/canais/whatsapp/template-reengajamento           -> reengajamento: status
 # ==============================================================================
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -146,7 +148,12 @@ async def conectar_canal_whatsapp(
 
     numero_de_exibicao = await obter_numero_de_exibicao(id_numero_telefone, token_de_acesso)
     await inscrever_webhook_da_waba(id_waba, token_de_acesso)
-    await registrar_numero_de_telefone(id_numero_telefone, token_de_acesso)
+    # Sem o registro na Cloud API nenhuma mensagem sai; por isso a falha
+    # interrompe a conexão e mostra o motivo na tela (ex.: PIN da verificação
+    # em duas etapas diferente), em vez de salvar uma conexão que não envia.
+    motivo_da_falha = await registrar_numero_de_telefone(id_numero_telefone, token_de_acesso)
+    if motivo_da_falha:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=motivo_da_falha)
 
     integracao = sessao.scalar(select(IntegracaoWhatsApp).where(IntegracaoWhatsApp.id_empresa == id_empresa))
     if integracao is None:
@@ -157,6 +164,8 @@ async def conectar_canal_whatsapp(
     integracao.id_waba_meta = id_waba
     integracao.numero_exibicao = numero_de_exibicao
     integracao.token_de_acesso = token_de_acesso
+    # A data da conexão acompanha a ÚLTIMA (re)conexão (antes ficava a da primeira).
+    integracao.conectado_em = datetime.now(timezone.utc)
 
     sessao.commit()
     sessao.refresh(integracao)
@@ -196,6 +205,7 @@ async def conectar_canal_whatsapp_manualmente(
     integracao.id_waba_meta = dados.id_waba_meta
     integracao.numero_exibicao = dados.numero_exibicao
     integracao.token_de_acesso = dados.token_de_acesso
+    integracao.conectado_em = datetime.now(timezone.utc)
 
     # Dois passos que faltavam e causavam problemas reais em todo envio
     # feito por uma conexão manual (o Embedded Signup faz os dois sozinho,

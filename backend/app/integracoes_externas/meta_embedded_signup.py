@@ -141,6 +141,40 @@ async def _encontrar_waba_ja_conectada_a_este_app(
     return None
 
 
+async def _listar_wabas_dos_negocios_do_token(cliente: httpx.AsyncClient, token_de_acesso: str) -> list[str]:
+    """
+    Lista as WABAs (próprias e de clientes) de todos os portfólios
+    empresariais que o token alcança: `/me/businesses` e, para cada negócio,
+    `/{id}/owned_whatsapp_business_accounts` e
+    `/{id}/client_whatsapp_business_accounts`. Só é usada quando
+    `/debug_token` não traz `target_ids` (permissão concedida para todos os
+    ativos). Precisa de `business_management` no token — sem essa permissão
+    a Meta responde "(#100) Missing Permission" e a função devolve lista
+    vazia (quem chama trata como "não deu para descobrir").
+    """
+    resposta = await cliente.get(
+        f"{URL_BASE_GRAPH_API}/me/businesses",
+        params={"access_token": token_de_acesso, "fields": "id", "limit": 100},
+    )
+    if resposta.status_code >= 400:
+        logger.warning("falha_ao_listar_negocios_do_token", status=resposta.status_code, corpo=resposta.text)
+        return []
+
+    ids_de_waba: list[str] = []
+    for negocio in resposta.json().get("data", []):
+        for aresta in ("owned_whatsapp_business_accounts", "client_whatsapp_business_accounts"):
+            resposta_wabas = await cliente.get(
+                f"{URL_BASE_GRAPH_API}/{negocio['id']}/{aresta}",
+                params={"access_token": token_de_acesso, "fields": "id", "limit": 100},
+            )
+            if resposta_wabas.status_code >= 400:
+                continue
+            for waba in resposta_wabas.json().get("data", []):
+                if waba["id"] not in ids_de_waba:
+                    ids_de_waba.append(waba["id"])
+    return ids_de_waba
+
+
 async def descobrir_waba_e_numero(token_de_acesso: str) -> tuple[str, str] | None:
     """
     Descobre sozinho, direto na Graph API, o WABA ID e o Phone Number ID
@@ -198,8 +232,19 @@ async def descobrir_waba_e_numero(token_de_acesso: str) -> tuple[str, str] | Non
             [],
         )
         if not ids_de_waba:
-            logger.warning("nenhuma_waba_autorizada_no_token", escopos=escopos)
-            return None
+            # Plano C: `granular_scopes` sem `target_ids` quer dizer que a
+            # permissão vale para TODOS os ativos (a Meta omite a lista nesse
+            # caso) — bug real encontrado no teste do Cobrança em 24/09/2026:
+            # o código chegava, o token vinha certo, mas sem nenhuma WABA
+            # listada. Aí listamos nós mesmos as WABAs dos negócios que o
+            # token alcança (exige `business_management` na configuração de
+            # Embedded Signup — ver Informacoes/Configuracoes_Meta_*.md) e
+            # seguimos para o mesmo desempate de sempre, logo abaixo.
+            ids_de_waba = await _listar_wabas_dos_negocios_do_token(cliente, token_de_acesso)
+            if not ids_de_waba:
+                logger.warning("nenhuma_waba_autorizada_no_token", escopos=escopos)
+                return None
+            logger.info("wabas_descobertas_pelos_negocios_do_token", ids_de_waba=ids_de_waba)
 
         if len(ids_de_waba) > 1:
             id_waba_desempatada = await _encontrar_waba_ja_conectada_a_este_app(cliente, ids_de_waba, token_de_acesso)
@@ -277,7 +322,7 @@ async def inscrever_webhook_da_waba(id_waba: str, token_de_acesso: str) -> bool:
     return sucesso
 
 
-async def registrar_numero_de_telefone(id_numero_telefone: str, token_de_acesso: str) -> bool:
+async def registrar_numero_de_telefone(id_numero_telefone: str, token_de_acesso: str) -> str | None:
     """
     Ativa de fato o número na Cloud API da Meta (endpoint POST .../register).
     Sem essa etapa, o número aparece como "conectado" na nossa tela, mas
@@ -295,6 +340,11 @@ async def registrar_numero_de_telefone(id_numero_telefone: str, token_de_acesso:
     função só é usada nos fluxos de conexão automatizados desta plataforma
     (nunca digitado por uma pessoa) — ele só importa se o número precisar
     ser migrado para fora da nossa Cloud API no futuro.
+
+    Devolve None quando deu certo, ou o motivo da falha. A falha mais comum
+    é o número já ter a verificação em duas etapas ativa com OUTRO PIN
+    (erro 133005): o registro é recusado e nenhuma mensagem sai. Antes o
+    motivo só ia para o log e a conexão parecia concluída (26/09/2026).
     """
     url = f"{URL_BASE_GRAPH_API}/{id_numero_telefone}/register"
     corpo = {"messaging_product": "whatsapp", "pin": "123456"}
@@ -303,10 +353,16 @@ async def registrar_numero_de_telefone(id_numero_telefone: str, token_de_acesso:
     async with httpx.AsyncClient(timeout=15) as cliente:
         resposta = await cliente.post(url, json=corpo, headers=cabecalhos)
 
-    sucesso = resposta.status_code < 400
-    if not sucesso:
-        logger.warning("falha_ao_registrar_numero_de_telefone", status=resposta.status_code, corpo=resposta.text)
-    return sucesso
+    if resposta.status_code < 400:
+        return None
+    logger.warning("falha_ao_registrar_numero_de_telefone", status=resposta.status_code, corpo=resposta.text)
+    erro = (resposta.json() if resposta.headers.get("content-type", "").startswith("application/json") else {}).get("error", {})
+    if erro.get("code") == 133005:
+        return (
+            "Este número já tem a verificação em duas etapas ativa com outro PIN. Desative-a em WhatsApp Manager → "
+            "Números de telefone → Configurações → Verificação em duas etapas e clique em Conectar WhatsApp de novo."
+        )
+    return f"A Meta não ativou o número na Cloud API: {erro.get('message') or resposta.text[:200]}"
 
 
 # ==============================================================================
@@ -318,7 +374,9 @@ async def registrar_numero_de_telefone(id_numero_telefone: str, token_de_acesso:
 # partir só do token, sem depender do postMessage frágil da Meta —
 # desempatando entre WABAs candidatas via
 # _encontrar_waba_ja_conectada_a_este_app quando a conta tem acesso a mais
-# de uma), obter_numero_de_exibicao (número no formato de exibição, para
+# de uma, e listando as WABAs dos negócios do token via
+# _listar_wabas_dos_negocios_do_token quando /debug_token não traz nenhuma
+# lista), obter_numero_de_exibicao (número no formato de exibição, para
 # mostrar na tela), inscrever_webhook_da_waba (garante que as mensagens
 # recebidas por esse número cheguem ao nosso webhook) e
 # registrar_numero_de_telefone (ativa o número na Cloud API — sem isso,
